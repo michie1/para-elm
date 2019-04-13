@@ -1,4 +1,4 @@
-module Main exposing (main)
+port module Main exposing (main)
 
 import Browser
 import Browser.Events exposing (onAnimationFrameDelta)
@@ -8,8 +8,10 @@ import WebGL exposing (Mesh, Shader)
 import Math.Matrix4 as Mat4 exposing (Mat4)
 import Math.Vector3 as Vec3 exposing (vec3, Vec3, getX, getY, getZ)
 import Json.Decode exposing (Value)
-
 import Html.Events exposing (onInput)
+import Json.Encode
+import Json.Decode exposing (decodeValue)
+
 
 type alias Model =
     { t : Float
@@ -43,6 +45,7 @@ subscriptions : Model -> Sub Msg
 subscriptions model =
     Sub.batch
         [ onAnimationFrameDelta SetTime
+        , getInfoFromOutside Outside LogErr
         ]
 
 
@@ -52,6 +55,9 @@ type Msg
     | SetBlue String
     | SetGreen String
     | SetDistance String
+    | Outside InfoForElm
+    | LogErr String
+
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -60,13 +66,24 @@ update msg model =
         SetTime t ->
             ( { model | t = model.t + t }, Cmd.none )
         SetRed red ->
-            ( { model | redInput = red }, Cmd.none )
+            ( { model | redInput = red }
+            , sendInfoOutside <| Send red
+            )
+
         SetBlue blue ->
             ( { model | blueInput = blue }, Cmd.none )
         SetGreen green ->
             ( { model | greenInput = green }, Cmd.none )
         SetDistance distance ->
             ( { model | distanceInput = distance }, Cmd.none )
+
+        Outside infoForElm2 ->
+            case infoForElm2 of
+                Get hoi ->
+                    ( { model | blueInput = hoi }, Cmd.none )
+
+        LogErr err ->
+            ( model, Cmd.none )
 
 
 view : Model -> Html Msg
@@ -192,3 +209,65 @@ fragmentShader =
         }
 
     |]
+
+-- ports
+
+port infoForOutside : GenericOutsideData -> Cmd msg
+
+
+port infoForElm : (GenericOutsideData -> msg) -> Sub msg
+
+
+sendInfoOutside : InfoForOutside -> Cmd msg
+sendInfoOutside info =
+    case info of
+        Send color ->
+            infoForOutside { tag = "Send", data = Json.Encode.string color }
+
+        LogError err ->
+            infoForOutside { tag = "LogError", data = Json.Encode.string err }
+
+
+getInfoFromOutside : (InfoForElm -> msg) -> (String -> msg) -> Sub msg
+getInfoFromOutside tagger onError =
+    infoForElm
+        (\outsideInfo ->
+            case outsideInfo.tag of
+                "Get" ->
+                    case decodeValue hoiDecoder outsideInfo.data of
+                        Ok hoi ->
+                            tagger <| Get hoi.foo
+
+                        Err e ->
+                            onError "error"
+
+                _ ->
+                    onError <| "Unexpected info from outside: "
+        )
+
+
+
+type alias Hoi =
+    { foo : String
+    }
+
+hoiDecoder : Json.Decode.Decoder Hoi
+hoiDecoder =
+    Json.Decode.map
+        Hoi
+        (Json.Decode.field "foo" Json.Decode.string)
+
+
+type InfoForOutside
+    = Send String
+    | LogError String
+
+
+type InfoForElm
+    = Get String
+
+
+type alias GenericOutsideData =
+    { tag : String
+    , data : Json.Encode.Value
+    }
