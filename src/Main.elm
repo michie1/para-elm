@@ -1,4 +1,4 @@
-module Triangle exposing (main)
+module Main exposing (main)
 
 import Browser
 import Browser.Events exposing (onAnimationFrameDelta)
