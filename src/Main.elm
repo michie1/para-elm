@@ -127,7 +127,7 @@ view model =
                 [ WebGL.entity
                     vertexShader
                     fragmentShader
-                    mesh
+                    triagleMesh
                     { perspective = perspective (model.t / 1000)
                     , ucolor = vec3 red green blue
                     , udistance = distance
@@ -190,8 +190,8 @@ type alias Vertex =
     }
 
 
-mesh : Mesh Vertex
-mesh =
+triagleMesh : Mesh Vertex
+triagleMesh =
     WebGL.triangles
         [ ( Vertex (vec3 0 0 0) (vec3 1 0 0)
           , Vertex (vec3 1 1 0) (vec3 1 0 0)

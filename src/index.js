@@ -48,7 +48,6 @@ doc.onSnapshot((snapshot) => {
     tag: 'UpdatedDistance',
     data: distance,
   });
-  console.log('doei', distance);
 });
 
 app.ports.infoForOutside
@@ -60,7 +59,6 @@ app.ports.infoForOutside
     } else if (msg.tag === 'UpdateGreen') {
       update('green', msg.data);
     } else if (msg.tag === 'UpdateDistance') {
-      console.log('hoi');
       update('distance', msg.data);
     }
   });
