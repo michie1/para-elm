@@ -289,7 +289,7 @@ getInfoFromOutside tagger onError =
                         "UpdatedGreen" ->
                             tagger <| UpdatedGreen value
 
-                        "UpdateDistance" ->
+                        "UpdatedDistance" ->
                             tagger <| UpdatedDistance value
 
                         _ ->
