@@ -8,13 +8,12 @@ const app = Elm.Main.init({
 });
 
 app.ports.infoForElm.send({
-  tag: 'Get',
-  data: {
-    foo: 'hallo'
-  }
+  tag: 'UpdatedRed',
+  data: "0.34",
 });
 
-app.ports.infoForOutside.subscribe((msg) => {
-  console.log('foo', msg);
-});
+app.ports.infoForOutside
+  .subscribe((msg) => {
+    console.log('foo', msg);
+  });
 

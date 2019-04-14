@@ -59,28 +59,45 @@ type Msg
     | LogErr String
 
 
-
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         SetTime t ->
             ( { model | t = model.t + t }, Cmd.none )
+
         SetRed red ->
             ( { model | redInput = red }
-            , sendInfoOutside <| Send red
+            , sendInfoOutside <| UpdateRed red
             )
 
         SetBlue blue ->
-            ( { model | blueInput = blue }, Cmd.none )
+            ( { model | blueInput = blue }
+            , sendInfoOutside <| UpdateBlue blue
+            )
+
         SetGreen green ->
-            ( { model | greenInput = green }, Cmd.none )
+            ( { model | greenInput = green }
+            , sendInfoOutside <| UpdateGreen green
+            )
+
         SetDistance distance ->
-            ( { model | distanceInput = distance }, Cmd.none )
+            ( { model | distanceInput = distance }
+            , sendInfoOutside <| UpdateDistance distance
+            )
 
         Outside infoForElm2 ->
             case infoForElm2 of
-                Get hoi ->
-                    ( { model | blueInput = hoi }, Cmd.none )
+                UpdatedRed red ->
+                    ( { model | redInput = red }, Cmd.none )
+
+                UpdatedBlue blue ->
+                    ( { model | blueInput = blue }, Cmd.none )
+
+                UpdatedGreen green ->
+                    ( { model | greenInput = green }, Cmd.none )
+
+                UpdatedDistance distance ->
+                    ( { model | distanceInput = distance }, Cmd.none )
 
         LogErr err ->
             ( model, Cmd.none )
@@ -89,10 +106,17 @@ update msg model =
 view : Model -> Html Msg
 view model =
     let
-        red = Maybe.withDefault 0 <| String.toFloat model.redInput
-        blue = Maybe.withDefault 0 <| String.toFloat model.blueInput
-        green = Maybe.withDefault 0 <| String.toFloat model.greenInput
-        distance = Maybe.withDefault 1.0 <| String.toFloat model.distanceInput
+        red =
+            Maybe.withDefault 0 <| String.toFloat model.redInput
+
+        blue =
+            Maybe.withDefault 0 <| String.toFloat model.blueInput
+
+        green =
+            Maybe.withDefault 0 <| String.toFloat model.greenInput
+
+        distance =
+            Maybe.withDefault 1.0 <| String.toFloat model.distanceInput
     in
         div []
             [ WebGL.toHtml
@@ -112,32 +136,41 @@ view model =
             , configForm model
             ]
 
+
 configForm : Model -> Html Msg
 configForm model =
-        div []
-            [ h2 [] [ text "Config" ]
-            , span [] [ text "Red" ]
-            , input [ type_ "input"
-                    , value model.redInput
-                    , onInput SetRed
-                    ] []
-            , span [] [ text "Blue" ]
-            , input [ type_ "input"
-                    , value model.blueInput
-                    , onInput SetBlue
-                    ] []
-            , span [] [ text "Green" ]
-            , input [ type_ "input"
-                    , value model.greenInput
-                    , onInput SetGreen
-                    ] []
-            , br [] []
-            , span [] [ text "Distance" ]
-            , input [ type_ "input"
-                    , value model.distanceInput
-                    , onInput SetDistance
-                    ] []
+    div []
+        [ h2 [] [ text "Config" ]
+        , span [] [ text "Red" ]
+        , input
+            [ type_ "input"
+            , value model.redInput
+            , onInput SetRed
             ]
+            []
+        , span [] [ text "Blue" ]
+        , input
+            [ type_ "input"
+            , value model.blueInput
+            , onInput SetBlue
+            ]
+            []
+        , span [] [ text "Green" ]
+        , input
+            [ type_ "input"
+            , value model.greenInput
+            , onInput SetGreen
+            ]
+            []
+        , br [] []
+        , span [] [ text "Distance" ]
+        , input
+            [ type_ "input"
+            , value model.distanceInput
+            , onInput SetDistance
+            ]
+            []
+        ]
 
 
 perspective : Float -> Mat4
@@ -210,7 +243,10 @@ fragmentShader =
 
     |]
 
+
+
 -- ports
+
 
 port infoForOutside : GenericOutsideData -> Cmd msg
 
@@ -221,8 +257,17 @@ port infoForElm : (GenericOutsideData -> msg) -> Sub msg
 sendInfoOutside : InfoForOutside -> Cmd msg
 sendInfoOutside info =
     case info of
-        Send color ->
-            infoForOutside { tag = "Send", data = Json.Encode.string color }
+        UpdateRed red ->
+            infoForOutside { tag = "UpdateRed", data = Json.Encode.string red }
+
+        UpdateBlue blue ->
+            infoForOutside { tag = "UpdateBlue", data = Json.Encode.string blue }
+
+        UpdateGreen green ->
+            infoForOutside { tag = "UpdateGreen", data = Json.Encode.string green }
+
+        UpdateDistance distance ->
+            infoForOutside { tag = "UpdateDistance", data = Json.Encode.string distance }
 
         LogError err ->
             infoForOutside { tag = "LogError", data = Json.Encode.string err }
@@ -232,39 +277,42 @@ getInfoFromOutside : (InfoForElm -> msg) -> (String -> msg) -> Sub msg
 getInfoFromOutside tagger onError =
     infoForElm
         (\outsideInfo ->
-            case outsideInfo.tag of
-                "Get" ->
-                    case decodeValue hoiDecoder outsideInfo.data of
-                        Ok hoi ->
-                            tagger <| Get hoi.foo
+            case decodeValue Json.Decode.string outsideInfo.data of
+                Ok value ->
+                    case outsideInfo.tag of
+                        "UpdatedRed" ->
+                            tagger <| UpdatedRed value
 
-                        Err e ->
-                            onError "error"
+                        "UpdatedBlue" ->
+                            tagger <| UpdatedBlue value
 
-                _ ->
-                    onError <| "Unexpected info from outside: "
+                        "UpdatedGreen" ->
+                            tagger <| UpdatedGreen value
+
+                        "UpdateDistance" ->
+                            tagger <| UpdatedDistance value
+
+                        _ ->
+                            onError <| "Unexpected info from outside: "
+
+                Err e ->
+                    onError "error"
         )
 
 
-
-type alias Hoi =
-    { foo : String
-    }
-
-hoiDecoder : Json.Decode.Decoder Hoi
-hoiDecoder =
-    Json.Decode.map
-        Hoi
-        (Json.Decode.field "foo" Json.Decode.string)
-
-
 type InfoForOutside
-    = Send String
+    = UpdateRed String
+    | UpdateBlue String
+    | UpdateGreen String
+    | UpdateDistance String
     | LogError String
 
 
 type InfoForElm
-    = Get String
+    = UpdatedRed String
+    | UpdatedBlue String
+    | UpdatedGreen String
+    | UpdatedDistance String
 
 
 type alias GenericOutsideData =
